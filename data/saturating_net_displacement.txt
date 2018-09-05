@@ -1,0 +1,88 @@
+
+    model {
+
+
+
+    ### likelihood
+
+    for(i in 1:N_obs){
+
+    # calculate expected distance at the current elapsed time (in seconds)
+    d_e[i] <- a[id[i]] * t[i] / (1 + a[id[i]] * t[i] / b[id[i]])
+
+    # find the magnitude of the difference between expected and observed values
+    # (i.e. the residual)
+    r[i] <- abs(d_e[i] - d_o[i])
+
+    # find the likelihood of the residual given that error is expected to be
+    # Rayleigh distributed.
+    # Here we're using the zeros trick.
+    L[i] <- (r[i] / scale^2) * exp(-r[i]^2 / (2 * scale^2)) + 1E-3
+    z[i] ~ dpois(-log(L[i]))
+
+    }
+
+
+    ### priors
+
+    for(i in 1:N_id){
+
+    a[i] ~ dgamma(a_spp_sh[nested.id.sp[i,2]], a_spp_ra[nested.id.sp[i,2]])
+    b[i] ~ dgamma(b_spp_sh[nested.id.sp[i,2]], b_spp_ra[nested.id.sp[i,2]])
+
+    }
+
+
+    for(s in 1:N_spp) {
+
+    # reparameterizing the gamma by mode and sd
+    a_spp_sh[s] <- 1 + a_spp_m[s] * a_spp_ra[s]
+    a_spp_ra[s] <- (a_spp_m[s] + sqrt(a_spp_m[s]^2 + 4 * a_spp_sd[s]^2)) / (2 * a_spp_sd[s]^2)
+
+    a_spp_m_unabs[s] ~ dt(a_m_overall_mu, a_m_overall_tau, 2) # Folded noncentral t following Gelman 2006
+    a_spp_m[s] <- abs(a_spp_m_unabs[s])
+
+    a_spp_sd_unabs[s] ~ dt(a_sd_overall_sdu, a_sd_overall_tau, 2) # Folded noncentral t following Gelman 2006
+    a_spp_sd[s] <- abs(a_spp_sd_unabs[s])
+
+    b_spp_sh[s] <- 1 + b_spp_m[s] * b_spp_ra[s]
+    b_spp_ra[s] <- (b_spp_m[s] + sqrt(b_spp_m[s]^2 + 4 * b_spp_sd[s]^2)) / (2 * b_spp_sd[s]^2)
+
+    b_spp_m_unabs[s] ~ dt(b_m_overall_mu, b_m_overall_tau, 2) # Folded noncentral t following Gelman 2006
+    b_spp_m[s] <- abs(b_spp_m_unabs[s])
+
+    b_spp_sd_unabs[s] ~ dt(b_sd_overall_sd, b_sd_overall_tau, 2) # Folded noncentral t following Gelman 2006
+    b_spp_sd[s] <- abs(b_spp_sd_unabs[s])
+
+    }
+
+
+    a_m_overall_mu ~ dunif(0, 100)
+    a_m_overall_tau <- pow(a_m_overall_sig, -2)
+    a_m_overall_sig ~ dunif(0, 100)
+
+    a_sd_overall_sdu ~ dunif(0, 100)
+    a_sd_overall_tau <- pow(a_sd_overall_sig, -2)
+    a_sd_overall_sig ~ dunif(0, 100)
+
+    b_m_overall_mu ~ dunif(0, 2000)
+    b_m_overall_tau <- pow(b_m_overall_sig, -2)
+    b_m_overall_sig ~ dunif(0, 2000)
+
+    b_sd_overall_sd ~ dunif(0, 2000)
+    b_sd_overall_tau <- pow(b_sd_overall_sig, -2)
+    b_sd_overall_sig ~ dunif(0, 2000)
+
+
+    ### sample for dispersal distance predictions
+
+    for(s in 1:N_spp){
+
+    p.a[s] ~ dgamma(a_spp_sh[s], a_spp_ra[s])
+    p.b[s] ~ dgamma(b_spp_sh[s], b_spp_ra[s])
+
+    }
+
+
+    }
+    
